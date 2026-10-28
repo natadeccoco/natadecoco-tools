@@ -7,6 +7,7 @@ function storeId(){return "";}
 function storeName(){
   var id='';
   try{id=storeId()||'';}catch(e){}
+  if(!id){try{performance.getEntriesByType('resource').forEach(function(e){var m=e.name.match(/\/api\/store\/(\d+)\//);if(m)id=m[1];});}catch(e){}}
   if(!id){var m=location.pathname.match(/store\/(\d+)/);if(m)id=m[1];}
   return MAP[String(id)]||'';
 }
@@ -20,7 +21,8 @@ function makeBtn(){
 }
 /* attach() はツールの画面があれば true、なければ false を返す */
 function attach(){var r=document.getElementById('natadecoco-gosa-check');if(!r)return false;
-  if(!r.querySelector('.ndk-fb-btn')){var w=document.createElement('div');w.setAttribute('style','text-align:right;margin:0 0 6px');w.appendChild(makeBtn());r.insertBefore(w,r.children[1]||null);}
+  var hd=r.querySelector('.hd');
+  if(hd&&!hd.querySelector('.ndk-fb-btn'))hd.insertBefore(makeBtn(),hd.querySelector('[data-a=close]'));
   return true;}
 var seen=false,t=setInterval(function(){
   var ok=false;try{ok=attach();}catch(e){}
