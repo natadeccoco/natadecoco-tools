@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>レジ誤差チェック</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+1p:wght@500;700;800&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+/* layout: 1カラムの手順書。上から「入れ方 → 押し方 → 見方 → 対処」の順に読む */
+:root{
+  --bg:#f7f6f4; --surface:#ffffff; --fg:#22201e; --muted:#6b6560; --line:#e4e0db;
+  --accent:#c8102e; --accent-soft:#fbe8eb;
+  --ng:#c8102e; --ng-bg:#fdecee; --warn:#a86b00; --warn-bg:#fff4dc; --ok:#1a7f37; --ok-bg:#e8f5ec; --info-bg:#f1efec;
+  --display:"M PLUS 1p","Hiragino Sans",system-ui,sans-serif;
+  --body:"Noto Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#171514; --surface:#211f1d; --fg:#eeeae6; --muted:#a39b94; --line:#35312e;
+  --accent:#ff5a6e; --accent-soft:#3a1d22;
+  --ng:#ff6b7c; --ng-bg:#3a1d22; --warn:#f0b445; --warn-bg:#382a10; --ok:#5cc77e; --ok-bg:#15301f; --info-bg:#2a2725; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#171514; --surface:#211f1d; --fg:#eeeae6; --muted:#a39b94; --line:#35312e;
+  --accent:#ff5a6e; --accent-soft:#3a1d22;
+  --ng:#ff6b7c; --ng-bg:#3a1d22; --warn:#f0b445; --warn-bg:#382a10; --ok:#5cc77e; --ok-bg:#15301f; --info-bg:#2a2725; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font:15px/1.8 var(--body);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 56px}
+main{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:28px}
+h1,h2{font-family:var(--display);text-wrap:balance;line-height:1.35;margin:0}
+h1{font-size:30px;font-weight:800}
+h2{font-size:19px;font-weight:700;display:flex;align-items:center;gap:10px}
+.step{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;font-size:14px;font-weight:800;flex:none}
+p{margin:0}
+.lead{color:var(--muted);max-width:62ch}
+section{display:flex;flex-direction:column;gap:12px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:12px}
+ol,ul{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:6px}
+.drag{display:flex;flex-wrap:wrap;align-items:center;gap:14px}
+.bm{display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#fff;text-decoration:none;font-family:var(--display);font-weight:800;font-size:17px;padding:12px 20px;border-radius:10px;cursor:grab;box-shadow:0 2px 0 rgba(0,0,0,.18)}
+.bm:active{cursor:grabbing}
+.btn{font:600 14px var(--body);background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:9px 14px;cursor:pointer}
+.btn:focus-visible,.bm:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.note{font-size:13px;color:var(--muted)}
+.fallback textarea{width:100%;min-height:70px;font:12px/1.4 ui-monospace,monospace;background:var(--info-bg);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:8px;box-sizing:border-box}
+.legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.chip{border-radius:8px;padding:10px 12px;font-size:14px;line-height:1.6}
+.chip b{display:block;font-family:var(--display)}
+.ng{background:var(--ng-bg);border-left:4px solid var(--ng)}
+.warn{background:var(--warn-bg);border-left:4px solid var(--warn)}
+.ok{background:var(--ok-bg);border-left:4px solid var(--ok)}
+.info{background:var(--info-bg);border-left:4px solid var(--muted)}
+.table-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:520px}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--display);font-weight:700;font-size:13px;color:var(--muted);letter-spacing:.04em}
+kbd{font:600 12px ui-monospace,monospace;background:var(--info-bg);border:1px solid var(--line);border-radius:4px;padding:1px 6px}
+.toast{font-size:13px;color:var(--ok);min-height:1.2em}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+
+<main>
+  <header style="display:flex;flex-direction:column;gap:10px">
+    <p class="note" style="letter-spacing:.08em">ナタデココ 店舗用ツール</p>
+    <h1>レジ誤差チェック</h1>
+    <p class="lead">締めでレジ誤差が出たときに、マイカの画面でボタンを1回押すだけで、その日の取引から原因の候補を探します。お金がなくなったのか、入力のズレなのかを、その場で切り分けられます。</p>
+  </header>
+
+  <section>
+    <h2><span class="step">1</span>ボタンを入れる（最初の1回だけ）</h2>
+    <p class="note">このボタンは押すたびに最新版のツールを読み込みます。ツールが新しくなっても、入れ直す必要はありません（以前のボタンを入れている店は、一度だけ入れ直してください）。</p>
+    <div class="panel">
+      <ol>
+        <li>店舗PCのChromeで、ブックマークバーを表示します（<kbd>Ctrl</kbd>＋<kbd>Shift</kbd>＋<kbd>B</kbd>、Macは <kbd>⌘</kbd>＋<kbd>Shift</kbd>＋<kbd>B</kbd>）。</li>
+        <li>下の赤いボタンを、マウスでつかんでブックマークバーまで引っぱって離します。</li>
+      </ol>
+      <div class="drag">
+        <a class="bm" id="bm" href="#">誤差チェック</a>
+        <span class="note">← これをブックマークバーへドラッグ</span>
+      </div>
+      <details class="fallback">
+        <summary class="note" style="cursor:pointer">ドラッグできないときの入れ方</summary>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">
+          <ol>
+            <li>「中身をコピー」を押します。</li>
+            <li>ブックマークバーの上で右クリック →「ページを追加」。</li>
+            <li>名前に「誤差チェック」、URLの欄に貼り付け（<kbd>Ctrl</kbd>＋<kbd>V</kbd>）して保存します。</li>
+          </ol>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <button class="btn" id="copy" type="button">中身をコピー</button>
+            <span class="toast" id="toast" role="status"></span>
+          </div>
+          <textarea id="code" readonly aria-label="ボタンの中身"></textarea>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="step">2</span>誤差が出たら押す</h2>
+    <div class="panel">
+      <ol>
+        <li>マイカにログインして、自分の店舗が選ばれている画面を開きます（どの画面でもOK）。</li>
+        <li>ブックマークバーの「誤差チェック」を押します。</li>
+        <li>その日の分を自動で調べます（締めを翌朝にしたときは、昼12時までに押せば前日の分を調べます）。</li>
+        <li>まだ締めていないときは、レジに実際に入っている現金の合計を聞かれます。数えた金額を入力してください。</li>
+        <li>右上に結果が出ます。「報告用にコピー」を押すと、LINEにそのまま貼れる文章になります。</li>
+      </ol>
+      <p class="note">うまく動かないときは、マイカの画面を再読み込み（<kbd>F5</kbd>）してからもう一度押してください。</p>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="step">3</span>結果の見方</h2>
+    <div class="legend">
+      <div class="chip ng"><b>赤：原因が見つかった</b>マイカの処理ミスです。お金はなくなっていません。書いてある直し方を次から守ってください。</div>
+      <div class="chip warn"><b>黄：記録上は原因なし</b>お釣りの渡し間違い・数え間違いなど、現物のミスの可能性。もう一度数え、合わなければ店長へ。</div>
+      <div class="chip ok"><b>緑：問題なし</b>チェックした項目は正常です。</div>
+      <div class="chip info"><b>いちばん上の3つの枠</b>①レジの結果がひと目でわかります。②金庫は金庫がずれたとき、③カード・PayPayはレジ誤差の原因が見つからないときだけ使います。</div>
+      <div class="chip info"><b>📒 小口シートと見比べる</b>買取（現金）とレジ→金庫の金額を、小口シートの同じ日の行と見比べてチェック。ずれた時はシートの数字を入れると、書き忘れ・2回書き・入金出金の逆などを探します。下に「金庫金で間違えやすいところ」も出ます。</div>
+    </div>
+    <div class="panel" style="gap:8px">
+      <p style="font-weight:700">表示の例（松戸店 10/23・レジ誤差 −1,840円）</p>
+      <div class="chip ng">17:47 返品 1,740円 が「金庫」レジで処理されています → レジが1,740円少なく見えます</div>
+      <div class="chip warn">残りの誤差 −100円 はマイカの記録からは原因が見つかりません → お釣りに100円玉が入っていた会計：18:08、18:59、19:28 ほか</div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="step">4</span>よく見つかる原因と直し方</h2>
+    <p class="note">金庫レジがない店（お台場など）でも使えます。その場合、買取はレジから払ったものとして計算します。</p>
+    <div class="panel table-wrap" style="padding:6px 8px">
+      <table>
+        <thead><tr><th>表示される内容</th><th>レジの見え方</th><th>次からどうするか</th></tr></thead>
+        <tbody>
+          <tr><td>出金を登録しないまま締めた</td><td>取り出した売上がまるごと少なく見える</td><td>締めの前にマイカの「入出金」で出金を登録する</td></tr>
+          <tr><td>返品が「金庫」レジで処理</td><td>返品した金額ぶん少なく見える</td><td>返品は必ずメインレジで処理する</td></tr>
+          <tr><td>カード・PayPayの会計を現金で返品</td><td>返品した金額ぶん多く見える</td><td>元の会計と同じ支払方法で返品する</td></tr>
+          <tr><td>現金の会計をカード等で返品</td><td>返品した金額ぶん少なく見える</td><td>同上</td></tr>
+          <tr><td>同じ会計が2回返品されている</td><td>返品した金額ぶんずれる</td><td>返品前に、すでに返品済みでないか確認する</td></tr>
+          <tr><td>買取がメインレジで処理</td><td>買取金額ぶん多く見える</td><td>買取は金庫レジで処理する</td></tr>
+          <tr><td>受取 − お釣り が会計額と合わない</td><td>その差額ぶんずれる</td><td>受取金額の入力を見直す</td></tr>
+          <tr><td>同じ金額の現金会計がある（マイナス時）</td><td>カード等で払われたのに現金で登録</td><td>支払方法を選んでから会計する</td></tr>
+          <tr><td>同じ金額のカード・PayPay会計がある（プラス時）</td><td>現金で払われたのにカード等で登録</td><td>同上</td></tr>
+          <tr><td>10円・100円・1,000円ちょうどの誤差</td><td>お釣りの渡し間違い・数え間違い</td><td>お釣りは声に出して数えて渡す</td></tr>
+          <tr><td>450円・900円・90円・4,000円などの誤差</td><td>500円玉と50円玉、1,000円札と100円玉などの取り違え</td><td>お釣りはお客様の前で1枚ずつ見せて渡す</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="step">5</span>カード・電子マネー・PayPayも確かめる</h2>
+    <div class="panel">
+      <p>マイカで「カード」「電子マネー」「PayPay」として会計した分が、決済端末（楽天ペイ・PayPay）の記録と合っているかを確かめます。</p>
+      <ol>
+        <li>楽天ペイの加盟店管理画面に、自分の店のショップコードでログインします。</li>
+        <li>「取引」→「履歴・取消」を開きます。</li>
+        <li>対象決済を「カード決済」、期間をその日の 0:00〜23:59 にして、「ファイル出力」を押します。</li>
+        <li>対象決済を「電子マネー決済」「アプリ決済」に変えて、同じように「ファイル出力」します（ファイルが3つできます）。</li>
+        <li>PayPay for Business（dashboard.paypay.ne.jp）に、自分の店のGmailでログインします。「取引」を開き、下の「履歴」の期間を「今日」にして「ダウンロードファイルを作成する」→「ファイルをダウンロードする」→「CSVでダウンロードする」を押します（ZIPファイルができます。解凍しなくてOK）。</li>
+        <li>マイカで「誤差チェック」を押し、結果のいちばん下の「ファイルを選択」で、楽天ペイの3つとPayPayのZIP、合わせて4つのファイルをまとめて選びます。</li>
+      </ol>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>表示される内容</th><th>考えられること</th></tr></thead>
+          <tbody>
+            <tr><td>端末の決済がマイカにない（同じ時間に現金の会計あり）</td><td>カードで払われたのに、マイカで現金を選んだ。レジが少なく見える</td></tr>
+            <tr><td>マイカのカード・電子マネー・PayPayが端末にない</td><td>実は現金だった（レジが多く見える）、決済し忘れ</td></tr>
+            <tr><td>マイカは電子マネーなのに、実際はPayPay</td><td>支払方法の選び間違い（お金は入っているので、レジには影響なし）</td></tr>
+            <tr><td>同じ金額が端末で2回決済されている</td><td>二重決済。お客様に返金が必要</td></tr>
+            <tr><td>オーソリ済（売上未確定）</td><td>売上が確定しておらず、入金されないおそれ</td></tr>
+            <tr><td>端末で取消したのにマイカで返品していない（または逆）</td><td>返品処理の漏れ</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note">マイカの「PayPay」には、PayPay本体と楽天ペイのアプリ決済（d払い・楽天ペイなど）の両方が入ります。両方のファイルを選ぶと、まとめて突き合わせます。柏店はPayPayの全店アカウントで、店舗を「柏本店」に絞ってからダウンロードしてください。</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>このボタンでわからないこと</h2>
+    <div class="panel">
+      <ul>
+        <li>お釣りの渡し間違い・数え間違いそのもの（候補の会計を出すところまで）</li>
+        <li>金庫の誤差の最終判断。自販機・銀行・他店とのお金の移動はマイカに載らないので、小口シートで確認してください。</li>
+      </ul>
+      <p class="note">マイカの画面を読み取るだけで、マイカのデータを書き換えることはありません。マイカの仕様が変わって動かなくなったときは、店長経由で本部に連絡してください。</p>
+    </div>
+  </section>
+</main>
+
+<script>
+const BM = "javascript:(()%3D%3E%7Bif(!%2Fmycalinks%5C.com%24%2F.test(location.host))%7Balert('%E3%83%9E%E3%82%A4%E3%82%AB%E3%81%AE%E7%94%BB%E9%9D%A2%E3%82%92%E9%96%8B%E3%81%84%E3%81%A6%E3%81%8B%E3%82%89%E6%8A%BC%E3%81%97%E3%81%A6%E3%81%8F%E3%81%A0%E3%81%95%E3%81%84%E3%80%82')%3Breturn%7Dvar%20s%3Ddocument.createElement('script')%3Bs.src%3D'https%3A%2F%2Fnatadeccoco.github.io%2Fnatadecoco-tools%2Fgosa-check.js%3Ft%3D'%2BDate.now()%3Bs.onerror%3Dfunction()%7Balert('%E8%AA%A4%E5%B7%AE%E3%83%81%E3%82%A7%E3%83%83%E3%82%AF%E3%82%92%E8%AA%AD%E3%81%BF%E8%BE%BC%E3%82%81%E3%81%BE%E3%81%9B%E3%82%93%E3%81%A7%E3%81%97%E3%81%9F%E3%80%82%E3%82%A4%E3%83%B3%E3%82%BF%E3%83%BC%E3%83%8D%E3%83%83%E3%83%88%E3%81%AB%E3%81%A4%E3%81%AA%E3%81%8C%E3%81%A3%E3%81%A6%E3%81%84%E3%82%8B%E3%81%8B%E7%A2%BA%E8%AA%8D%E3%81%97%E3%81%A6%E3%80%81%E3%82%82%E3%81%86%E4%B8%80%E5%BA%A6%E6%8A%BC%E3%81%97%E3%81%A6%E3%81%8F%E3%81%A0%E3%81%95%E3%81%84%E3%80%82')%7D%3Bdocument.head.appendChild(s)%7D)()";
+const a = document.getElementById('bm');
+a.setAttribute('href', BM);
+a.addEventListener('click', e => { e.preventDefault(); });
+a.title = '誤差チェック';
+// ドラッグはブラウザ標準の動きに任せる（リンクの文字「誤差チェック」がブックマーク名になる）
+const ta = document.getElementById('code');
+ta.value = BM;
+document.getElementById('copy').addEventListener('click', async () => {
+  const t = document.getElementById('toast');
+  try { await navigator.clipboard.writeText(BM); t.textContent = 'コピーしました。URLの欄に貼り付けてください。'; }
+  catch (_) { ta.focus(); ta.select(); t.textContent = '下の枠の中身を選択しました。Ctrl＋C でコピーしてください。'; }
+});
+</script>
