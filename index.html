@@ -67,6 +67,7 @@ kbd{font:600 12px ui-monospace,monospace;background:var(--info-bg);border:1px so
   <section>
     <h2><span class="step">1</span>ボタンを入れる（最初の1回だけ）</h2>
     <p class="note">このボタンは押すたびに最新版のツールを読み込みます。ツールが新しくなっても、入れ直す必要はありません（以前のボタンを入れている店は、一度だけ入れ直してください）。</p>
+    <div class="chip info" id="storebar"><b>全店共通のページです</b>本部から届いた店舗専用のURLから開くと、小口シートの合言葉を入れなくて済みます。</div>
     <div class="panel">
       <ol>
         <li>店舗PCのChromeで、ブックマークバーを表示します（<kbd>Ctrl</kbd>＋<kbd>Shift</kbd>＋<kbd>B</kbd>、Macは <kbd>⌘</kbd>＋<kbd>Shift</kbd>＋<kbd>B</kbd>）。</li>
@@ -189,7 +190,17 @@ kbd{font:600 12px ui-monospace,monospace;background:var(--info-bg);border:1px so
 </main>
 
 <script>
-const BM = "javascript:(()%3D%3E%7Bif(!%2Fmycalinks%5C.com%24%2F.test(location.host))%7Balert('%E3%83%9E%E3%82%A4%E3%82%AB%E3%81%AE%E7%94%BB%E9%9D%A2%E3%82%92%E9%96%8B%E3%81%84%E3%81%A6%E3%81%8B%E3%82%89%E6%8A%BC%E3%81%97%E3%81%A6%E3%81%8F%E3%81%A0%E3%81%95%E3%81%84%E3%80%82')%3Breturn%7Dvar%20s%3Ddocument.createElement('script')%3Bs.src%3D'https%3A%2F%2Fnatadeccoco.github.io%2Fnatadecoco-tools%2Fgosa-check.js%3Ft%3D'%2BDate.now()%3Bs.onerror%3Dfunction()%7Balert('%E8%AA%A4%E5%B7%AE%E3%83%81%E3%82%A7%E3%83%83%E3%82%AF%E3%82%92%E8%AA%AD%E3%81%BF%E8%BE%BC%E3%82%81%E3%81%BE%E3%81%9B%E3%82%93%E3%81%A7%E3%81%97%E3%81%9F%E3%80%82%E3%82%A4%E3%83%B3%E3%82%BF%E3%83%BC%E3%83%8D%E3%83%83%E3%83%88%E3%81%AB%E3%81%A4%E3%81%AA%E3%81%8C%E3%81%A3%E3%81%A6%E3%81%84%E3%82%8B%E3%81%8B%E7%A2%BA%E8%AA%8D%E3%81%97%E3%81%A6%E3%80%81%E3%82%82%E3%81%86%E4%B8%80%E5%BA%A6%E6%8A%BC%E3%81%97%E3%81%A6%E3%81%8F%E3%81%A0%E3%81%95%E3%81%84%E3%80%82')%7D%3Bdocument.head.appendChild(s)%7D)()";
+const LOADER = "(()=>{if(!/mycalinks\\.com$/.test(location.host)){alert('マイカの画面を開いてから押してください。');return}var s=document.createElement('script');s.src='https://natadeccoco.github.io/natadecoco-tools/gosa-check.js?t='+Date.now();s.onerror=function(){alert('誤差チェックを読み込めませんでした。インターネットにつながっているか確認して、もう一度押してください。')};document.head.appendChild(s)})()";
+// 店舗専用URL（…/#s=matsudo&k=合言葉）から開いたときは、ボタンに合言葉を入れておく（店での入力が不要になる）
+const hp = new URLSearchParams(location.hash.slice(1));
+const KEY = /^[0-9a-f]{10}$/.test(hp.get('k') || '') ? hp.get('k') : '';
+const STORES = {kashiwa:'柏',tsudanuma:'津田沼',matsudo:'松戸',yokohama:'横浜',nakano:'中野',machida:'町田',chibachuo:'千葉中央',odaiba:'お台場'};
+const STORE = STORES[hp.get('s')] || '';
+const BM = 'javascript:' + encodeURIComponent(KEY
+  ? LOADER.replace('var s=document.createElement', "try{localStorage.setItem('natadecoco-kogane-key','" + KEY + "')}catch(e){}var s=document.createElement")
+  : LOADER);
+const sb = document.getElementById('storebar');
+if (KEY) { sb.className = 'chip ok'; sb.innerHTML = '<b></b>このページのボタンには、この店の合言葉が入っています。ボタンを入れて押すだけで、小口シートの点検までできます。'; sb.querySelector('b').textContent = (STORE ? STORE + '店' : 'この店') + 'の専用ページです'; }
 const a = document.getElementById('bm');
 a.setAttribute('href', BM);
 a.addEventListener('click', e => { e.preventDefault(); });
